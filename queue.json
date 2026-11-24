@@ -1,0 +1,14 @@
+[
+  {
+    "id": "post-001",
+    "title": "Welcome to ChronoCast",
+    "text": "ChronoCast is live. Automated, serverless multi-platform publishing powered by GitHub Actions.",
+    "html": "<b>ChronoCast is live.</b><br>Automated, serverless multi-platform publishing powered by <i>GitHub Actions</i>.",
+    "imageUrl": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&q=80",
+    "platforms": ["discord", "telegram"],
+    "scheduledAt": "2026-11-23T00:00:00Z",
+    "status": "scheduled",
+    "source": "manual",
+    "dryRun": true
+  }
+]
