@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChronoCast | Serverless Social Scheduler</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800 pb-6 mb-8">
+            <div>
+                <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-white">ChronoCast</h1>
+                <p class="text-slate-400 mt-1 text-sm sm:text-base">Headless, serverless multi-platform social scheduler powered by GitHub Actions.</p>
+            </div>
+            <div class="flex items-center gap-3 text-xs font-mono">
+                <span id="stat-queue" class="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-md text-indigo-400">Queue: 0</span>
+                <span id="stat-published" class="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-md text-emerald-400">Published: 0</span>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="flex items-center gap-2 border-b border-slate-800 pb-4 mb-8 overflow-x-auto">
+            <button data-tab="queue" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white transition-colors">Upcoming Queue</button>
+            <button data-tab="published" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 transition-colors">Published History</button>
+            <button data-tab="composer" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 transition-colors">Post Composer & AI Schema</button>
+        </nav>
+
+        <!-- Tab 1: Upcoming Queue -->
+        <section id="tab-queue" class="tab-panel space-y-4">
+            <div id="queue-list" class="grid grid-cols-1 md:grid-cols-2 gap-5"></div>
+            <div id="queue-empty" class="hidden text-center py-16 border border-dashed border-slate-800 rounded-xl">
+                <p class="text-slate-400 font-medium">No posts currently scheduled.</p>
+                <p class="text-slate-500 text-sm mt-1">Use the Post Composer tab to generate a new entry for queue.json.</p>
+            </div>
+        </section>
+
+        <!-- Tab 2: Published History -->
+        <section id="tab-published" class="tab-panel hidden space-y-4">
+            <div id="published-list" class="grid grid-cols-1 md:grid-cols-2 gap-5"></div>
+            <div id="published-empty" class="hidden text-center py-16 border border-dashed border-slate-800 rounded-xl">
+                <p class="text-slate-400 font-medium">No published posts yet.</p>
+            </div>
+        </section>
+
+        <!-- Tab 3: Post Composer -->
+        <section id="tab-composer" class="tab-panel hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Form -->
+                <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-6 space-y-4">
+                    <h2 class="text-lg font-semibold text-white">Compose Scheduled Post</h2>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Title</label>
+                        <input id="c-title" type="text" placeholder="Launch Announcement" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" />
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Plain Text (Discord / Fallback)</label>
+                        <textarea id="c-text" rows="3" placeholder="Write your post text..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">HTML Content (Telegram / Custom Webhook)</label>
+                        <textarea id="c-html" rows="3" placeholder="<b>Bold update</b><br>Formatted content..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-indigo-500"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Image URL (Optional)</label>
+                        <input id="c-image" type="url" placeholder="https://example.com/banner.jpg" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" />
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-1">Schedule Date & Time</label>
+                            <input id="c-date" type="datetime-local" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" />
+                        </div>
+                        <div class="flex flex-col justify-end">
+                            <label class="inline-flex items-center gap-2 text-sm text-slate-300 cursor-pointer py-2">
+                                <input id="c-dryrun" type="checkbox" class="rounded bg-slate-950 border-slate-700 text-indigo-600" />
+                                Dry Run (test without sending)
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-2">Target Platforms</label>
+                        <div class="flex flex-wrap gap-3 text-sm text-slate-300">
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" value="discord" class="c-platform" checked /> Discord
+                            </label>
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" value="telegram" class="c-platform" checked /> Telegram
+                            </label>
+                            <label class="inline-flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" value="webhook" class="c-platform" /> Custom Webhook
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live JSON Output & AI Hook -->
+                <div class="space-y-5">
+                    <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-6">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-sm font-semibold text-white">Generated queue.json Entry</h2>
+                            <button id="copy-json-btn" class="text-xs font-medium px-3 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white transition-colors">Copy JSON</button>
+                        </div>
+                        <pre id="json-preview" class="bg-slate-950 border border-slate-800 rounded-lg p-4 text-xs font-mono text-emerald-300 overflow-x-auto leading-relaxed"></pre>
+                    </div>
+
+                    <div class="bg-slate-900/70 border border-slate-800 rounded-xl p-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-sm font-semibold text-white">External AI Integration</h3>
+                            <button id="copy-ai-btn" class="text-xs font-medium px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors">Copy AI Prompt</button>
+                        </div>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            Connect any LLM (Gemini, OpenAI, Claude) to ChronoCast by passing this schema prompt. The model will return a valid JSON object with text, HTML, and image fields ready to append to <code class="text-slate-300">queue.json</code>.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        const tabPanels = document.querySelectorAll('.tab-panel');
+
+        tabButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const target = btn.dataset.tab;
+                tabButtons.forEach(b => {
+                    b.className = 'tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700 transition-colors';
+                });
+                btn.className = 'tab-btn px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white transition-colors';
+
+                tabPanels.forEach(panel => {
+                    panel.classList.toggle('hidden', panel.id !== `tab-${target}`);
+                });
+            });
+        });
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function createPostCard(post, isPublished) {
+            const platformsHtml = (post.platforms || []).map(p =>
+                `<span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300 uppercase tracking-wide">${escapeHtml(p)}</span>`
+            ).join('');
+
+            const deliveryHtml = isPublished && post.deliveryResults
+                ? `<div class="mt-3 pt-3 border-t border-slate-800/80 flex flex-wrap gap-2">
+                    ${post.deliveryResults.map(r => `
+                        <span class="text-xs font-mono px-2 py-0.5 rounded border ${r.ok ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20'}">
+                            ${escapeHtml(r.platform)}: ${r.ok ? (r.mode || 'sent') : 'failed'}
+                        </span>
+                    `).join('')}
+                   </div>`
+                : '';
+
+            const imageHtml = post.imageUrl
+                ? `<img src="${escapeHtml(post.imageUrl)}" alt="" class="w-full h-40 object-cover rounded-lg mb-4 border border-slate-800" />`
+                : '';
+
+            const timeLabel = isPublished
+                ? `Published: ${new Date(post.publishedAt).toLocaleString()}`
+                : `Scheduled: ${new Date(post.scheduledAt).toLocaleString()}`;
+
+            const card = document.createElement('article');
+            card.className = 'bg-slate-900/80 border border-slate-800 rounded-xl p-5 flex flex-col justify-between';
+            card.innerHTML = `
+                <div>
+                    ${imageHtml}
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                        <span class="text-xs font-mono text-slate-500">${escapeHtml(post.id)}</span>
+                        <span class="text-xs px-2.5 py-0.5 rounded-full border ${isPublished ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'}">
+                            ${escapeHtml(post.status || (isPublished ? 'published' : 'scheduled'))}
+                        </span>
+                    </div>
+                    <h3 class="text-lg font-semibold text-white mb-1">${escapeHtml(post.title || 'Untitled Post')}</h3>
+                    <p class="text-sm text-slate-400 mb-3">${escapeHtml(post.text || '')}</p>
+                    <div class="flex flex-wrap gap-1.5">${platformsHtml}</div>
+                    ${deliveryHtml}
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono text-slate-500">
+                    <span>${timeLabel}</span>
+                    <span>source: ${escapeHtml(post.source || 'manual')}</span>
+                </div>
+            `;
+            return card;
+        }
+
+        async function loadData() {
+            try {
+                const [qRes, pRes] = await Promise.all([
+                    fetch('queue.json'),
+                    fetch('published.json')
+                ]);
+                const queue = qRes.ok ? await qRes.json() : [];
+                const published = pRes.ok ? await pRes.json() : [];
+
+                document.getElementById('stat-queue').textContent = `Queue: ${queue.length}`;
+                document.getElementById('stat-published').textContent = `Published: ${published.length}`;
+
+                const qList = document.getElementById('queue-list');
+                const qEmpty = document.getElementById('queue-empty');
+                qList.innerHTML = '';
+                if (queue.length === 0) {
+                    qEmpty.classList.remove('hidden');
+                } else {
+                    qEmpty.classList.add('hidden');
+                    queue.forEach(item => qList.appendChild(createPostCard(item, false)));
+                }
+
+                const pList = document.getElementById('published-list');
+                const pEmpty = document.getElementById('published-empty');
+                pList.innerHTML = '';
+                if (published.length === 0) {
+                    pEmpty.classList.remove('hidden');
+                } else {
+                    pEmpty.classList.add('hidden');
+                    published.forEach(item => pList.appendChild(createPostCard(item, true)));
+                }
+            } catch (err) {
+                console.error('Failed to load JSON files:', err);
+            }
+        }
+
+        // Composer Logic
+        const fields = ['c-title', 'c-text', 'c-html', 'c-image', 'c-date', 'c-dryrun'];
+        function updatePreview() {
+            const platforms = [...document.querySelectorAll('.c-platform:checked')].map(el => el.value);
+            const rawDate = document.getElementById('c-date').value;
+            const isoDate = rawDate ? new Date(rawDate).toISOString() : new Date(Date.now() + 3600000).toISOString();
+
+            const payload = {
+                id: `post-${Date.now().toString().slice(-5)}`,
+                title: document.getElementById('c-title').value.trim() || 'Untitled Post',
+                text: document.getElementById('c-text').value.trim(),
+                html: document.getElementById('c-html').value.trim(),
+                imageUrl: document.getElementById('c-image').value.trim(),
+                platforms,
+                scheduledAt: isoDate,
+                status: 'scheduled',
+                source: 'manual',
+                dryRun: document.getElementById('c-dryrun').checked
+            };
+
+            document.getElementById('json-preview').textContent = JSON.stringify(payload, null, 2);
+        }
+
+        fields.forEach(id => document.getElementById(id).addEventListener('input', updatePreview));
+        document.querySelectorAll('.c-platform').forEach(el => el.addEventListener('change', updatePreview));
+
+        document.getElementById('copy-json-btn').addEventListener('click', async () => {
+            const text = document.getElementById('json-preview').textContent;
+            await navigator.clipboard.writeText(text);
+            const btn = document.getElementById('copy-json-btn');
+            btn.textContent = 'Copied';
+            setTimeout(() => btn.textContent = 'Copy JSON', 1500);
+        });
+
+        document.getElementById('copy-ai-btn').addEventListener('click', async () => {
+            const prompt = `Generate a single valid JSON object for ChronoCast queue.json with these exact keys: id (string), title (string), text (plain text), html (basic HTML using <b>, <i>, <br>), imageUrl (string URL or empty), platforms (array of "discord", "telegram", "webhook"), scheduledAt (ISO-8601 UTC timestamp), status ("scheduled"), source ("ai-agent"), dryRun (false). Return only raw JSON.`;
+            await navigator.clipboard.writeText(prompt);
+            const btn = document.getElementById('copy-ai-btn');
+            btn.textContent = 'Prompt Copied';
+            setTimeout(() => btn.textContent = 'Copy AI Prompt', 1500);
+        });
+
+        loadData();
+        updatePreview();
+    </script>
+</body>
+</html>
